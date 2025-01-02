@@ -23,19 +23,20 @@
 
 using namespace std;
 
+// root path folder
+
+const string root_path = "C:\\ProgramData\\cryptk\\";
+
 // path to AES key if alr generated
-string AES_KEY_FILE = "C:\\ProgramData\\aes_key.bin";
+static string AES_KEY_FILE = "C:\\ProgramData\\cryptk\\";
 
-// path to temp AES encrypted key
-
-string AES_KEY_FILE_ENCRYPTED = "C:\\ProgramData\\aes_key_enc.bin";
 
 // path to cfg file
 const string CFG_FILE = "C:\\ProgramData\\quanticrypt_cfg.txt";
 
 // path to public RSA key
 
-const string RSA_PUBLIC_KEY_PATH = "C:\\ProgramData\\rsa_public_key.pem";
+static string RSA_PUBLIC_KEY_PATH = "C:\\ProgramData\\cryptk\\";
 
 // function to check if file exists already
 bool is_file_exists(const char* file_path)
@@ -54,12 +55,23 @@ bool is_file_exists(const char* file_path)
 
 // creating root folder
 
-//void create_root_folder()
-//{
-//    string root_folder_path = "C:\\ProgramData\\cryptk";
-//    if(CreateDirectory(root_folder_path.c_str(), NULL))
-//}
+void create_root_folder()
+{
+    filesystem::path root_path = "C:\\ProgramData\\cryptk";
+    if (!filesystem::exists(root_path))
+    {
+        try
+        {
+            filesystem::create_directory(root_path);
+        }
+        catch(const filesystem::filesystem_error& e)
+        {
+            cerr << e.what(); // ??? :D
+        }
+    }
+}
 
+// creating folder for flash
 
 
 // =============================
@@ -67,6 +79,7 @@ bool is_file_exists(const char* file_path)
 // =============================
 
 // structure to store device information
+
 struct usb_device_info
 {
     string drive_letter;
@@ -74,20 +87,21 @@ struct usb_device_info
     string pnp_device_id;
 };
 
-// get pnp device id of a usb drive by its drive letter
-string get_pnp_device_id(const string& drive_letter)
+// get device serial number
+
+string get_serial_number(const string& drive_letter)
 {
     HRESULT hres;
-    string pnp_device_id = "unknown";
+    string serial_number = "unknown";
 
-    // initialize COM
+    // Initialize COM library
     hres = CoInitializeEx(0, COINIT_MULTITHREADED);
     if (FAILED(hres))
     {
-        return pnp_device_id;
+        return serial_number;
     }
 
-    // initialize security
+    // Initialize security
     hres = CoInitializeSecurity(
         NULL,
         -1,
@@ -102,10 +116,150 @@ string get_pnp_device_id(const string& drive_letter)
     if (FAILED(hres))
     {
         CoUninitialize();
+        return serial_number;
+    }
+
+    // Obtain the initial locator to WMI
+    IWbemLocator* pLoc = NULL;
+    hres = CoCreateInstance(
+        CLSID_WbemLocator,
+        0,
+        CLSCTX_INPROC_SERVER,
+        IID_IWbemLocator,
+        (LPVOID*)&pLoc);
+
+    if (FAILED(hres))
+    {
+        CoUninitialize();
+        return serial_number;
+    }
+
+    IWbemServices* pSvc = NULL;
+    hres = pLoc->ConnectServer(
+        _bstr_t(L"ROOT\\CIMV2"),
+        NULL,
+        NULL,
+        0,
+        NULL,
+        0,
+        0,
+        &pSvc);
+
+    if (FAILED(hres))
+    {
+        pLoc->Release();
+        CoUninitialize();
+        return serial_number;
+    }
+
+    // Set the proxy for impersonation
+    hres = CoSetProxyBlanket(
+        pSvc,
+        RPC_C_AUTHN_WINNT,
+        RPC_C_AUTHZ_NONE,
+        NULL,
+        RPC_C_AUTHN_LEVEL_CALL,
+        RPC_C_IMP_LEVEL_IMPERSONATE,
+        NULL,
+        EOAC_NONE);
+
+    if (FAILED(hres))
+    {
+        pSvc->Release();
+        pLoc->Release();
+        CoUninitialize();
+        return serial_number;
+    }
+
+    // Query for the disk drive associated with the logical disk
+    wstring logical_disk_query = L"ASSOCIATORS OF {Win32_LogicalDisk.DeviceID='";
+    logical_disk_query += wstring(drive_letter.begin(), drive_letter.end());
+    logical_disk_query.pop_back(); // Remove trailing backslash
+    logical_disk_query += L"'} WHERE AssocClass=Win32_LogicalDiskToPartition";
+
+    IEnumWbemClassObject* pEnumerator = NULL;
+    hres = pSvc->ExecQuery(
+        bstr_t("WQL"),
+        bstr_t("SELECT SerialNumber FROM Win32_PhysicalMedia"),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL,
+        &pEnumerator);
+
+    if (FAILED(hres))
+    {
+        pSvc->Release();
+        pLoc->Release();
+        CoUninitialize();
+        return serial_number;
+    }
+
+    IWbemClassObject* pclsObj = NULL;
+    ULONG uReturn = 0;
+
+    // Iterate through the results
+    while (pEnumerator)
+    {
+        hres = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
+        if (0 == uReturn)
+        {
+            break;
+        }
+
+        VARIANT vtProp;
+
+        // Get the serial number property
+        hres = pclsObj->Get(L"SerialNumber", 0, &vtProp, 0, 0);
+        if (SUCCEEDED(hres) && vtProp.vt == VT_BSTR)
+        {
+            serial_number = _bstr_t(vtProp.bstrVal);
+        }
+        VariantClear(&vtProp);
+        pclsObj->Release();
+    }
+
+    pEnumerator->Release();
+    pSvc->Release();
+    pLoc->Release();
+    CoUninitialize();
+
+    return serial_number;
+}
+
+ 
+// get pnp device id of a usb drive by its drive letter
+string get_pnp_device_id(const string& drive_letter)
+{
+    HRESULT hres;
+    string pnp_device_id = "unknown";
+
+
+    hres = CoInitializeEx(0, COINIT_MULTITHREADED);
+    if (FAILED(hres))
+    {
+        cerr << "Failed to initialize COM library" << endl;
         return pnp_device_id;
     }
 
-    // obtain the initial locator to WMI
+
+    hres = CoInitializeSecurity(
+        NULL,
+        -1,
+        NULL,
+        NULL,
+        RPC_C_AUTHN_LEVEL_DEFAULT,
+        RPC_C_IMP_LEVEL_IMPERSONATE,
+        NULL,
+        EOAC_NONE,
+        NULL);
+
+    if (FAILED(hres))
+    {
+        cerr << "Failed to initialize security" << endl;
+        CoUninitialize();
+        return pnp_device_id;
+    }
+
+
     IWbemLocator* p_loc = NULL;
     hres = CoCreateInstance(
         CLSID_WbemLocator,
@@ -116,13 +270,14 @@ string get_pnp_device_id(const string& drive_letter)
 
     if (FAILED(hres))
     {
+        cerr << "Failed to create IWbemLocator object" << endl;
         CoUninitialize();
         return pnp_device_id;
     }
 
     IWbemServices* p_svc = NULL;
     hres = p_loc->ConnectServer(
-        _bstr_t(L"ROOT\\CIMV2"), // wmi namespace
+        _bstr_t(L"ROOT\\CIMV2"),
         NULL,
         NULL,
         0,
@@ -133,12 +288,13 @@ string get_pnp_device_id(const string& drive_letter)
 
     if (FAILED(hres))
     {
+        cerr << "Could not connect to WMI namespace ROOT\\CIMV2" << endl;
         p_loc->Release();
         CoUninitialize();
         return pnp_device_id;
     }
 
-    // set the proxy for impersonation
+
     hres = CoSetProxyBlanket(
         p_svc,
         RPC_C_AUTHN_WINNT,
@@ -151,56 +307,84 @@ string get_pnp_device_id(const string& drive_letter)
 
     if (FAILED(hres))
     {
+        cerr << "Could not set proxy blanket" << endl;
         p_svc->Release();
         p_loc->Release();
         CoUninitialize();
         return pnp_device_id;
     }
 
-    // query for the disk drive associated with the logical disk
-    wstring logical_disk_query = L"ASSOCIATORS OF {Win32_LogicalDisk.DeviceID='";
-    logical_disk_query += wstring(drive_letter.begin(), drive_letter.end());
-    logical_disk_query.pop_back(); // remove trailing backslash
-    logical_disk_query += L"'} WHERE AssocClass=Win32_LogicalDiskToPartition";
+
+    wstring query_partition = L"ASSOCIATORS OF {Win32_LogicalDisk.DeviceID='";
+    query_partition += wstring(drive_letter.begin(), drive_letter.end());
+    query_partition.pop_back();
+    query_partition += L"'} WHERE AssocClass=Win32_LogicalDiskToPartition";
 
     IEnumWbemClassObject* p_enumerator = NULL;
     hres = p_svc->ExecQuery(
         bstr_t("WQL"),
-        bstr_t("SELECT PNPDeviceID FROM Win32_DiskDrive WHERE MediaType = 'Removable Media'"),
+        bstr_t(query_partition.c_str()),
         WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
         NULL,
         &p_enumerator);
 
-    if (FAILED(hres))
+    if (FAILED(hres) || !p_enumerator)
     {
+        cerr << "Query for partitions failed" << endl;
         p_svc->Release();
         p_loc->Release();
         CoUninitialize();
         return pnp_device_id;
     }
 
-    IWbemClassObject* p_cls_obj = NULL;
+    IWbemClassObject* p_partition = NULL;
     ULONG u_return = 0;
 
-    // iterate through partitions to find the corresponding disk
-    while (p_enumerator)
+    while (p_enumerator->Next(WBEM_INFINITE, 1, &p_partition, &u_return) == S_OK)
     {
-        hres = p_enumerator->Next(WBEM_INFINITE, 1, &p_cls_obj, &u_return);
-        if (0 == u_return)
+        VARIANT vt_device_id;
+        hres = p_partition->Get(L"DeviceID", 0, &vt_device_id, 0, 0);
+
+        if (SUCCEEDED(hres) && vt_device_id.vt == VT_BSTR)
         {
-            break;
+            // 2. Ќайти диск, соответствующий разделу
+            wstring query_disk = L"ASSOCIATORS OF {Win32_DiskPartition.DeviceID='";
+            query_disk += vt_device_id.bstrVal;
+            query_disk += L"'} WHERE AssocClass=Win32_DiskDriveToDiskPartition";
+
+            IEnumWbemClassObject* p_disk_enumerator = NULL;
+            hres = p_svc->ExecQuery(
+                bstr_t("WQL"),
+                bstr_t(query_disk.c_str()),
+                WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+                NULL,
+                &p_disk_enumerator);
+
+            if (SUCCEEDED(hres) && p_disk_enumerator)
+            {
+                IWbemClassObject* p_disk = NULL;
+
+                while (p_disk_enumerator->Next(WBEM_INFINITE, 1, &p_disk, &u_return) == S_OK)
+                {
+                    VARIANT vt_pnp_id;
+                    hres = p_disk->Get(L"PNPDeviceID", 0, &vt_pnp_id, 0, 0);
+
+                    if (SUCCEEDED(hres) && vt_pnp_id.vt == VT_BSTR)
+                    {
+                        pnp_device_id = _bstr_t(vt_pnp_id.bstrVal);
+                        VariantClear(&vt_pnp_id);
+                    }
+
+                    p_disk->Release();
+                }
+
+                p_disk_enumerator->Release();
+            }
+
+            VariantClear(&vt_device_id);
         }
 
-        VARIANT vt_prop;
-
-        // get the pnp device id from the associated disk
-        hres = p_cls_obj->Get(L"PNPDeviceID", 0, &vt_prop, 0, 0);
-        if (SUCCEEDED(hres) && vt_prop.vt == VT_BSTR)
-        {
-            pnp_device_id = _bstr_t(vt_prop.bstrVal);
-        }
-        VariantClear(&vt_prop);
-        p_cls_obj->Release();
+        p_partition->Release();
     }
 
     p_enumerator->Release();
@@ -210,6 +394,7 @@ string get_pnp_device_id(const string& drive_letter)
 
     return pnp_device_id;
 }
+
 
 // get a list of connected removable devices
 vector<usb_device_info> get_removable_drives()
@@ -230,7 +415,7 @@ vector<usb_device_info> get_removable_drives()
         {
             usb_device_info device;
             device.drive_letter = drive;
-            device.serial_number = "not implemented"; // implement later if needed
+            device.serial_number = get_serial_number(drive); // implement later if needed
             device.pnp_device_id = get_pnp_device_id(drive);
             devices.push_back(device);
         }
@@ -254,8 +439,13 @@ void display_removable_drives(const vector<usb_device_info>& devices)
         cout << "available usb flash drives:" << endl;
         for (size_t i = 0; i < devices.size(); ++i)
         {
+
+            string rsa_key_p = devices[i].drive_letter + "\\rsa_private_key.pem";
+
+            bool rsa_key_exists = filesystem::exists(rsa_key_p);
+
             cout << i + 1 << ". " << devices[i].drive_letter
-                << " (pnp device id: " << devices[i].pnp_device_id << ")" << endl;
+                << " (pnp device id: " << devices[i].pnp_device_id << ")" << "\t RSA pk:" << (rsa_key_exists ? " Found" : " Not found") << endl;
         }
     }
 }
@@ -380,7 +570,8 @@ bool encrypt_and_overwrite_aes_key_with_public_key(const string& aes_key_file, c
 bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_key_file, const string& private_key_path) {
 
     ifstream input_file(encrypted_aes_key_file, ios::binary);
-    if (!input_file) {
+    if (!input_file)
+    {
         cerr << "Failed to open encrypted AES key file: " << encrypted_aes_key_file << endl;
         return false;
     }
@@ -388,7 +579,8 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
     string encrypted_aes_key((istreambuf_iterator<char>(input_file)), istreambuf_iterator<char>());
     input_file.close();
 
-    if (encrypted_aes_key.empty()) {
+    if (encrypted_aes_key.empty())
+    {
         cerr << "Encrypted AES key file is empty: " << encrypted_aes_key_file << endl;
         return false;
     }
@@ -403,7 +595,8 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
 
 
     ofstream output_file(encrypted_aes_key_file, ios::binary | ios::trunc);
-    if (!output_file) {
+    if (!output_file)
+    {
         cerr << "Failed to overwrite AES key file: " << encrypted_aes_key_file << endl;
         return false;
     }
@@ -411,7 +604,8 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
     output_file.write(decrypted_aes_key.data(), decrypted_aes_key.size());
     output_file.close();
 
-    if (!output_file.good()) {
+    if (!output_file.good())
+    {
         cerr << "Error occurred while writing to file: " << encrypted_aes_key_file << endl;
         return false;
     }
@@ -463,7 +657,7 @@ bool encryption_with_aes_ui(unsigned char* iv, unsigned char* aes_key)
 }
 
 // decrypting with aes ui
-bool decryption_with_aes_ui(unsigned char* aes_key)
+bool decryption_with_aes_ui(unsigned char* aes_key, const string AES_KEY_FILE)
 {
     string input_file_path, output_file_path, output_base_name;
 
@@ -482,13 +676,15 @@ bool decryption_with_aes_ui(unsigned char* aes_key)
     system("cls");
 
 
-    cout << "Enter base name for the decrypted file:\n";
+    cout << "Enter base name for the decrypted file (without extension):\n";
     cin >> output_base_name;
     system("cls");
 
+    cout << "decryption_with_aes_ui AES_KEY_FILE path: " << AES_KEY_FILE << endl;
+
 
     string full_output_path = output_file_path + output_base_name;
-    if (!decrypt_file_with_aes(input_file_path, full_output_path))
+    if (!decrypt_file_with_aes(input_file_path, full_output_path, AES_KEY_FILE))
     {
         system("cls");
         cout << "Error decrypting your file\n";
@@ -509,7 +705,16 @@ bool decryption_with_aes_ui(unsigned char* aes_key)
 // =============================
 unsigned char* initialize_aes()
 {
-    unsigned char* aes = new unsigned char[32];
+
+    unsigned char* aes = generate_aes_key();
+    if (!aes)
+    {
+        free(aes);
+        return nullptr;
+    }
+    return aes;
+
+    /*unsigned char* aes = new unsigned char[32];
     if (is_file_exists(AES_KEY_FILE.c_str()))
     {
         if (!load_aes_key(AES_KEY_FILE.c_str(), aes, 32))
@@ -533,7 +738,7 @@ unsigned char* initialize_aes()
         delete[] gen_aes;
     }
 
-    return aes;
+    return aes;*/
 }
 unsigned char* initialize_iv()
 {
@@ -548,15 +753,10 @@ unsigned char* initialize_iv()
 // =============================
 // main ui
 // =============================
-
-
-
-
 bool user_interface()
 {
-    unsigned char* aes = initialize_aes();
-    unsigned char* iv = initialize_iv();
-
+    static unsigned char* aes = initialize_aes();
+    static unsigned char* iv = initialize_iv();
 
 
     static usb_device_info selected_device;
@@ -566,43 +766,27 @@ bool user_interface()
     display_removable_drives(devices);
     while (running)
     {
-        cout << "\ncryptk tool menu:\n";
-        cout << "1. select a usb device\n";
-        cout << "2. encrypt/decrypt file\n";
-        cout << "3. settings\n";
-        cout << "4. exit\n";
+        cout << "\nquanticrypt menu:\n";
+        cout << "1. display available usb devices\n";
+        cout << "2. select a usb device\n";
+        cout << "3. refresh device list\n";
+        cout << "4. encrypt file\n";
+        cout << "5. decrypt file\n";
+        cout << "6. exit\n";
         cout << "enter your choice: ";
 
         int choice;
         cin >> choice;
 
-        
+
 
         switch (choice)
         {
         case 1:
             system("cls");
             display_removable_drives(devices);
-            selected_device = select_device(devices);
-
-            if (!selected_device.drive_letter.empty())
-            {
-
-                cout << "you selected: " << selected_device.drive_letter
-                    << " (pnp device id: " << selected_device.pnp_device_id << ")" << endl;
-
-
-                string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
-                if (!is_file_exists(rsa_private_key_path.c_str()))
-                {
-                    if (!generate_and_save_rsa_keys(rsa_private_key_path, RSA_PUBLIC_KEY_PATH))
-                    {
-                        cerr << "error on writing rsa keys\n";
-                        return false;
-                    }
-                }
-            }
             break;
+
         case 2:
         {
             system("cls");
@@ -614,6 +798,29 @@ bool user_interface()
 
                 cout << "you selected: " << selected_device.drive_letter
                     << " (pnp device id: " << selected_device.pnp_device_id << ")" << endl;
+
+                filesystem::path selected_flash_path = root_path + (string)selected_device.serial_number;
+
+                if (!filesystem::exists(selected_flash_path))
+                {
+                    filesystem::create_directory(selected_flash_path);
+                }
+
+                AES_KEY_FILE = AES_KEY_FILE + selected_device.serial_number + "\\aes_key.bin";
+
+                if (!is_file_exists(AES_KEY_FILE.c_str()))
+                {
+                    ofstream key_file(AES_KEY_FILE.c_str(), ios::binary);
+                    key_file.write(reinterpret_cast<const char*>(aes), 32);
+                    key_file.close();
+                }
+                else
+                {
+                    load_aes_key(AES_KEY_FILE.c_str(), aes, 32);
+                    cout << "AES key loaded to flash\n";
+                }
+
+                RSA_PUBLIC_KEY_PATH = RSA_PUBLIC_KEY_PATH + "\\" + (string)selected_device.serial_number + "\\rsa_public_key.pem";
 
 
                 string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
@@ -633,29 +840,38 @@ bool user_interface()
             system("cls");
             devices = update_drive_list();
             break;
-        //case 4:
-        //    system("cls");
-        //    if (!selected_device.drive_letter.empty())
-        //    {
-        //        if (!encryption_with_aes_ui(iv, aes))
-        //        {
-        //            cout << "error on encrypting files...\n";
-        //            return false;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        cout << "please, pick a device (option 2)\n";
-        //    }
-        //    break;
-        //case 5:
-        //    system("cls");
-        //    if (!decryption_with_aes_ui(aes))
-        //    {
-        //        return false;
-        //    }
-        //    break;
         case 4:
+            system("cls");
+            if (!selected_device.drive_letter.empty())
+            {
+                
+                if (!encryption_with_aes_ui(iv, aes))
+                {
+                    cout << "error on encrypting files...\n";
+                    return false;
+                }
+            }
+            else
+            {
+                cout << "please, pick a device (option 2)\n";
+            }
+            break;
+        case 5:
+            system("cls");
+            if (!selected_device.drive_letter.empty())
+            {
+                if (!decryption_with_aes_ui(aes, AES_KEY_FILE.c_str()))
+                {
+                    cout << "error on decrypting files...\n";
+                    return false;
+                }
+            }
+            else
+            {
+                cout << "please, pick a device (option 2)\n";
+            }
+            break;
+        case 6:
             running = false;
             break;
         case 7:
@@ -694,7 +910,7 @@ bool user_interface()
 
 int main()
 {
-    if()
+    create_root_folder();
     user_interface();
 
     return 0;

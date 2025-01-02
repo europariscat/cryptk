@@ -7,11 +7,17 @@
 using namespace std;
 
 
-bool decrypt_file_with_aes(const string& input_file_path, const string& output_file_path)
+bool decrypt_file_with_aes(const string& input_file_path, const string& output_file_path, const string AES_KEY_FILE)
 {
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, nullptr);
-    const string AES_KEY_FILE = "C:\\ProgramData\\aes_key.bin";
+    /*const string AES_KEY_FILE = "C:\\ProgramData\\aes_key.bin";*/
     unsigned char aes[32];
+
+
+
+    cout << "Input file path: " << input_file_path << endl;
+    cout << "Output file path: " << output_file_path << endl;
+    cout << "decrypt_file_with_aes.h AES_KEY_FILE path: " << AES_KEY_FILE << endl;
 
 
     if (!load_aes_key(AES_KEY_FILE.c_str(), aes, sizeof(aes)))
@@ -22,10 +28,12 @@ bool decrypt_file_with_aes(const string& input_file_path, const string& output_f
 
     ifstream input_file(input_file_path, ios::binary);
     ofstream output_file(output_file_path, ios::binary);
+
+
     if (!input_file || !output_file)
     {
         fprintf(stderr, "Error on opening files");
-        exit(1);
+        return false;
     }
 
 

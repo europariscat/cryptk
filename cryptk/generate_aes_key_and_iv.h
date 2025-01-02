@@ -20,10 +20,10 @@ unsigned char* generate_aes_key(const int key_length = 32) {
         printf("%02x", key[i]);
     }
 
-    // saving key to file w constant path
-    ofstream keyFile("C:\\ProgramData\\aes_key.bin", ios::binary);
-    keyFile.write(reinterpret_cast<const char*>(key), key_length);
-    keyFile.close();
+    //// saving key to file w constant path
+    //ofstream keyFile("C:\\ProgramData\\aes_key.bin", ios::binary);
+    //keyFile.write(reinterpret_cast<const char*>(key), key_length);
+    //keyFile.close();
 
     printf("\n");
     return key;
