@@ -42,6 +42,24 @@ const string CFG_FILE = "C:\\ProgramData\\quanticrypt_cfg.txt";
 
 static string RSA_PUBLIC_KEY_PATH = "C:\\ProgramData\\cryptk\\";
 
+// func that allows us to check if aes key is encrypted
+
+bool is_file_encrypted(const string& aes_key_file) {
+    ifstream file(aes_key_file, ios::binary | ios::ate);
+    if (!file.is_open()) {
+        cerr << "Unable to open AES key file.\n";
+        return false;
+    }
+
+
+    streamsize file_size = file.tellg();
+    file.close();
+
+
+    return file_size > 32;
+}
+
+
 // function to check if file exists already
 bool is_file_exists(const char* file_path)
 {
@@ -521,6 +539,9 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT u_msg, WPARAM w_param, LPARAM l_par
 // other ui 
 // =============================
 
+
+
+
 // overwriting aes key to encrypted aes key with PUBLIC key
 bool encrypt_and_overwrite_aes_key_with_public_key(const string& aes_key_file, const string& public_key_path) {
 
@@ -618,6 +639,34 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
     return true;
 }
 
+// aes key file utils
+
+bool ensure_aes_key_decrypted(const string& aes_key_file, const string& rsa_private_key_path) {
+    if (is_file_encrypted(aes_key_file))
+    {
+        if (!decrypt_and_overwrite_aes_key_with_private_key(aes_key_file, rsa_private_key_path))
+        {
+            cerr << "Failed to decrypt AES key.\n";
+            return false;
+        }
+        cout << "AES key successfully decrypted.\n";
+    }
+    return true;
+}
+
+
+bool ensure_aes_key_encrypted(const string& aes_key_file, const string& rsa_public_key_path)
+{
+    if (!is_file_encrypted(aes_key_file)) {
+        if (!encrypt_and_overwrite_aes_key_with_public_key(aes_key_file, rsa_public_key_path))
+        {
+            cerr << "Failed to encrypt AES key.\n";
+            return false;
+        }
+        cout << "AES key successfully encrypted.\n";
+    }
+    return true;
+}
 
 // encrypting with aes ui
 bool encryption_with_aes_ui(unsigned char* iv, unsigned char* aes_key)
@@ -836,6 +885,10 @@ bool user_interface()
                         return false;
                     }
                 }
+                if (!is_file_encrypted(AES_KEY_FILE.c_str()))
+                {
+                    ensure_aes_key_encrypted(AES_KEY_FILE, RSA_PUBLIC_KEY_PATH.c_str());
+                }
             }
             break;
         }
@@ -848,12 +901,20 @@ bool user_interface()
             system("cls");
             if (!selected_device.drive_letter.empty())
             {
+
+                string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
                 
+                if (is_file_encrypted(AES_KEY_FILE.c_str()))
+                {
+                    ensure_aes_key_decrypted(AES_KEY_FILE.c_str(), rsa_private_key_path.c_str());
+                }
                 if (!encryption_with_aes_ui(iv, aes))
                 {
                     cout << "error on encrypting files...\n";
+                    ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
                     return false;
                 }
+                ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
             }
             else
             {
@@ -864,11 +925,20 @@ bool user_interface()
             system("cls");
             if (!selected_device.drive_letter.empty())
             {
+                string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
+
+                if (is_file_encrypted(AES_KEY_FILE.c_str()))
+                {
+                    ensure_aes_key_decrypted(AES_KEY_FILE.c_str(), rsa_private_key_path.c_str());
+                }
+
                 if (!decryption_with_aes_ui(aes, AES_KEY_FILE.c_str()))
                 {
                     cout << "error on decrypting files...\n";
+                    ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
                     return false;
                 }
+                ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
             }
             else
             {
@@ -878,29 +948,7 @@ bool user_interface()
         case 6:
             running = false;
             break;
-        case 7:
-            if (!encrypt_and_overwrite_aes_key_with_public_key(AES_KEY_FILE, RSA_PUBLIC_KEY_PATH))
-            {
-                return false;
-            }
-            else
-            {
-                cout << "succesfully encrypted AES key with RSA key\n";
-            }
-            break;
-        case 8:
-            if (!selected_device.drive_letter.empty()) {
-                string rsa_key_path = selected_device.drive_letter + "rsa_private_key.pem";
-                if (!decrypt_and_overwrite_aes_key_with_private_key(AES_KEY_FILE, rsa_key_path))
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                cout << "please, select a device that has RSA private key\n";
-            }
-            break;
+        
         default:
             cout << "invalid choice. please try again.\n";
         }
