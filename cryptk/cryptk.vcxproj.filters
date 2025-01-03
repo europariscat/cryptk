@@ -13,6 +13,15 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\rsa_keys_utils">
+      <UniqueIdentifier>{8d785ec6-b43b-42fb-97fb-8afffce66de5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\aes_keys_utils">
+      <UniqueIdentifier>{4d057d89-1e98-4035-b73d-8f65407c84b3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\flash utils">
+      <UniqueIdentifier>{8bac4296-ec77-4531-a626-2b743e4fe7d0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -23,26 +32,29 @@
     <ClInclude Include="includes.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="load_aes_key.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="rsa_keys_generation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="generate_aes_key_and_iv.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="decrypt_file_with_aes.h">
+      <Filter>Header Files\aes_keys_utils</Filter>
     </ClInclude>
     <ClInclude Include="encrypt_file_with_aes.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\aes_keys_utils</Filter>
     </ClInclude>
-    <ClInclude Include="encrypt_aes_key_with_public_rsa_key.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="decrypt_file_with_aes.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="generate_aes_key_and_iv.h">
+      <Filter>Header Files\aes_keys_utils</Filter>
     </ClInclude>
     <ClInclude Include="decrypt_aes_key_with_private_rsa_key.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\rsa_keys_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="encrypt_aes_key_with_public_rsa_key.h">
+      <Filter>Header Files\rsa_keys_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="rsa_keys_generation.h">
+      <Filter>Header Files\rsa_keys_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="load_aes_key.h">
+      <Filter>Header Files\aes_keys_utils</Filter>
+    </ClInclude>
+    <ClInclude Include="flash_utils.h">
+      <Filter>Header Files\flash utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

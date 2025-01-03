@@ -142,6 +142,7 @@
     <ClInclude Include="decrypt_file_with_aes.h" />
     <ClInclude Include="encrypt_aes_key_with_public_rsa_key.h" />
     <ClInclude Include="encrypt_file_with_aes.h" />
+    <ClInclude Include="flash_utils.h" />
     <ClInclude Include="generate_aes_key_and_iv.h" />
     <ClInclude Include="includes.h" />
     <ClInclude Include="load_aes_key.h" />
