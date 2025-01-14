@@ -24,7 +24,7 @@
 
 using namespace std;
 
-// 
+
 
 
 // root path folder
@@ -44,10 +44,12 @@ static string RSA_PUBLIC_KEY_PATH = "C:\\ProgramData\\cryptk\\";
 
 // func that allows us to check if aes key is encrypted
 
-bool is_file_encrypted(const string& aes_key_file) {
+bool is_file_encrypted(const string& aes_key_file)
+{
     ifstream file(aes_key_file, ios::binary | ios::ate);
-    if (!file.is_open()) {
-        cerr << "Unable to open AES key file.\n";
+    if (!file.is_open())
+    {
+        cerr << "unable to open AES key file.\n";
         return false;
     }
 
@@ -437,7 +439,7 @@ vector<usb_device_info> get_removable_drives()
         {
             usb_device_info device;
             device.drive_letter = drive;
-            device.serial_number = get_serial_number(drive); // implement later if needed
+            device.serial_number = get_serial_number(drive); 
             device.pnp_device_id = get_pnp_device_id(drive);
             devices.push_back(device);
         }
@@ -507,33 +509,8 @@ vector<usb_device_info> update_drive_list()
     return devices;
 }
 
-// =============================
-// windows event handling
-// =============================
 
-// main window procedure for handling device events
-LRESULT CALLBACK window_proc(HWND hwnd, UINT u_msg, WPARAM w_param, LPARAM l_param)
-{
-    static vector<usb_device_info> devices = get_removable_drives();
 
-    switch (u_msg)
-    {
-    case WM_DEVICECHANGE:
-        if (w_param == DBT_DEVICEARRIVAL || w_param == DBT_DEVICEREMOVECOMPLETE)
-        {
-            devices = update_drive_list();
-        }
-        break;
-
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-
-    default:
-        return DefWindowProc(hwnd, u_msg, w_param, l_param);
-    }
-    return 0;
-}
 
 // =============================
 // other ui 
@@ -543,7 +520,8 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT u_msg, WPARAM w_param, LPARAM l_par
 
 
 // overwriting aes key to encrypted aes key with PUBLIC key
-bool encrypt_and_overwrite_aes_key_with_public_key(const string& aes_key_file, const string& public_key_path) {
+bool encrypt_and_overwrite_aes_key_with_public_key(const string& aes_key_file, const string& public_key_path)
+{
 
     ifstream input_file(aes_key_file, ios::binary);
     if (!input_file)
@@ -578,26 +556,27 @@ bool encrypt_and_overwrite_aes_key_with_public_key(const string& aes_key_file, c
     }
 
     output_file.write(encrypted_key.data(), encrypted_key.size());
-    output_file.close();
+    
 
     if (!output_file.good())
     {
         cerr << "Error occurred while writing to file: " << aes_key_file << endl;
         return false;
     }
-
+    output_file.close();
     cout << "AES key successfully encrypted and overwritten in: " << aes_key_file << endl;
     return true;
 }
 
 // overwriting aes key to encrypted aes key with PRIVATE key
 
-bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_key_file, const string& private_key_path) {
+bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_key_file, const string& private_key_path)
+{
 
     ifstream input_file(encrypted_aes_key_file, ios::binary);
     if (!input_file)
     {
-        cerr << "Failed to open encrypted AES key file: " << encrypted_aes_key_file << endl;
+        cerr << "failed to open encrypted AES key file: " << encrypted_aes_key_file << endl;
         return false;
     }
 
@@ -606,7 +585,7 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
 
     if (encrypted_aes_key.empty())
     {
-        cerr << "Encrypted AES key file is empty: " << encrypted_aes_key_file << endl;
+        cerr << "encrypted AES key file is empty: " << encrypted_aes_key_file << endl;
         return false;
     }
 
@@ -614,15 +593,18 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
     string decrypted_aes_key;
     if (!decrypt_aes_key_with_private_key(encrypted_aes_key, private_key_path, decrypted_aes_key))
     {
-        cerr << "Failed to decrypt AES key with private key." << endl;
+        cerr << "failed to decrypt AES key with private key." << endl;
         return false;
     }
-
+    else
+    {
+        cout << "decrypted AES key size: " << decrypted_aes_key.size() << endl;
+    }
 
     ofstream output_file(encrypted_aes_key_file, ios::binary | ios::trunc);
     if (!output_file)
     {
-        cerr << "Failed to overwrite AES key file: " << encrypted_aes_key_file << endl;
+        cerr << "failed to overwrite AES key file: " << encrypted_aes_key_file << endl;
         return false;
     }
 
@@ -631,7 +613,7 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
 
     if (!output_file.good())
     {
-        cerr << "Error occurred while writing to file: " << encrypted_aes_key_file << endl;
+        cerr << "error occurred while writing to file: " << encrypted_aes_key_file << endl;
         return false;
     }
 
@@ -641,12 +623,13 @@ bool decrypt_and_overwrite_aes_key_with_private_key(const string& encrypted_aes_
 
 // aes key file utils
 
-bool ensure_aes_key_decrypted(const string& aes_key_file, const string& rsa_private_key_path) {
+bool ensure_aes_key_decrypted(const string& aes_key_file, const string& rsa_private_key_path)
+{
     if (is_file_encrypted(aes_key_file))
     {
         if (!decrypt_and_overwrite_aes_key_with_private_key(aes_key_file, rsa_private_key_path))
         {
-            cerr << "Failed to decrypt AES key.\n";
+            cerr << "failed to decrypt AES key.\n";
             return false;
         }
         cout << "AES key successfully decrypted.\n";
@@ -657,10 +640,11 @@ bool ensure_aes_key_decrypted(const string& aes_key_file, const string& rsa_priv
 
 bool ensure_aes_key_encrypted(const string& aes_key_file, const string& rsa_public_key_path)
 {
-    if (!is_file_encrypted(aes_key_file)) {
+    if (!is_file_encrypted(aes_key_file))
+    {
         if (!encrypt_and_overwrite_aes_key_with_public_key(aes_key_file, rsa_public_key_path))
         {
-            cerr << "Failed to encrypt AES key.\n";
+            cerr << "failed to encrypt AES key.\n";
             return false;
         }
         cout << "AES key successfully encrypted.\n";
@@ -669,8 +653,17 @@ bool ensure_aes_key_encrypted(const string& aes_key_file, const string& rsa_publ
 }
 
 // encrypting with aes ui
-bool encryption_with_aes_ui(unsigned char* iv, unsigned char* aes_key)
+bool encryption_with_aes_ui(unsigned char* iv, const string& AES_KEY_FILE)
 {
+    unsigned char aes_key[32];
+
+    if (!load_aes_key(AES_KEY_FILE.c_str(), aes_key, sizeof(aes_key)))
+    {
+        cerr << "error loading AES key from file";
+        return false;
+    }
+
+
     string input_file_path, output_file_path, output_file_name;
     cout << "1. tell path to which file you want to encrypt (drag & drop it to cmd!)\n";
     cin >> input_file_path;
@@ -684,7 +677,7 @@ bool encryption_with_aes_ui(unsigned char* iv, unsigned char* aes_key)
     cin >> output_file_name;
     if (output_file_path.back() != '\\' && output_file_path.back() != '/')
     {
-        output_file_path += "\\"; // adding slash if user didnt put it himself
+        output_file_path += "\\";
     }
     system("cls");
 
@@ -724,7 +717,7 @@ bool decryption_with_aes_ui(unsigned char* aes_key, const string AES_KEY_FILE)
     cin >> output_file_path;
     if (output_file_path.back() != '\\' && output_file_path.back() != '/')
     {
-        output_file_path += "\\"; // adding slash if user didnt put it himself
+        output_file_path += "\\";
     }
     system("cls");
 
@@ -819,7 +812,7 @@ bool user_interface()
     display_removable_drives(devices);
     while (running)
     {
-        cout << "\nquanticrypt menu:\n";
+        cout << "\ncryptk tool menu:\n";
         cout << "1. display available usb devices\n";
         cout << "2. select a usb device\n";
         cout << "3. refresh device list\n";
@@ -832,127 +825,134 @@ bool user_interface()
         cin >> choice;
 
 
-
-        switch (choice)
+        if (isdigit(choice))
         {
-        case 1:
-            system("cls");
-            display_removable_drives(devices);
-            break;
-
-        case 2:
-        {
-            system("cls");
-            display_removable_drives(devices);
-            selected_device = select_device(devices);
-
-            if (!selected_device.drive_letter.empty())
+            switch (choice)
             {
+            case 1:
+                system("cls");
+                display_removable_drives(devices);
+                break;
 
-                cout << "you selected: " << selected_device.drive_letter
-                    << " (pnp device id: " << selected_device.pnp_device_id << ")" << endl;
+            case 2:
+            {
+                system("cls");
+                display_removable_drives(devices);
+                selected_device = select_device(devices);
 
-                filesystem::path selected_flash_path = root_path + (string)selected_device.serial_number;
-
-                if (!filesystem::exists(selected_flash_path))
+                if (!selected_device.drive_letter.empty())
                 {
-                    filesystem::create_directory(selected_flash_path);
+
+                    cout << "you selected: " << selected_device.drive_letter
+                        << " (pnp device id: " << selected_device.pnp_device_id << ")" << endl;
+
+                    filesystem::path selected_flash_path = root_path + (string)selected_device.serial_number;
+
+                    if (!filesystem::exists(selected_flash_path))
+                    {
+                        filesystem::create_directory(selected_flash_path);
+                    }
+
+                    AES_KEY_FILE = AES_KEY_FILE + selected_device.serial_number + "\\aes_key.bin";
+
+                    if (!is_file_exists(AES_KEY_FILE.c_str()))
+                    {
+                        ofstream key_file(AES_KEY_FILE.c_str(), ios::binary);
+                        key_file.write(reinterpret_cast<const char*>(aes), 32);
+                        key_file.close();
+                    }
+                    else
+                    {
+                        load_aes_key(AES_KEY_FILE.c_str(), aes, 32);
+                    }
+
+                    RSA_PUBLIC_KEY_PATH = RSA_PUBLIC_KEY_PATH + "\\" + (string)selected_device.serial_number + "\\rsa_public_key.pem";
+
+
+                    string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
+                    if (!is_file_exists(RSA_PUBLIC_KEY_PATH.c_str()))
+                    {
+                        if (!generate_and_save_rsa_keys(rsa_private_key_path, RSA_PUBLIC_KEY_PATH))
+                        {
+                            cerr << "error on writing rsa keys\n";
+                            return false;
+                        }
+                    }
+                    if (!is_file_encrypted(AES_KEY_FILE.c_str()))
+                    {
+                        ensure_aes_key_encrypted(AES_KEY_FILE, RSA_PUBLIC_KEY_PATH.c_str());
+                    }
                 }
+                break;
+            }
 
-                AES_KEY_FILE = AES_KEY_FILE + selected_device.serial_number + "\\aes_key.bin";
-
-                if (!is_file_exists(AES_KEY_FILE.c_str()))
+            case 3:
+                system("cls");
+                devices = update_drive_list();
+                break;
+            case 4:
+                system("cls");
+                if (!selected_device.drive_letter.empty())
                 {
-                    ofstream key_file(AES_KEY_FILE.c_str(), ios::binary);
-                    key_file.write(reinterpret_cast<const char*>(aes), 32);
-                    key_file.close();
+
+                    string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
+
+                    if (is_file_encrypted(AES_KEY_FILE.c_str()))
+                    {
+                        ensure_aes_key_decrypted(AES_KEY_FILE.c_str(), rsa_private_key_path.c_str());
+                    }
+                    if (!encryption_with_aes_ui(iv, AES_KEY_FILE.c_str()))
+                    {
+                        cout << "error on encrypting files...\n";
+                        ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
+                        return false;
+                    }
+                    ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
                 }
                 else
                 {
-                    load_aes_key(AES_KEY_FILE.c_str(), aes, 32);
-                    cout << "AES key loaded to flash\n";
+                    cout << "please, pick a device (option 2)\n";
                 }
-
-                RSA_PUBLIC_KEY_PATH = RSA_PUBLIC_KEY_PATH + "\\" + (string)selected_device.serial_number + "\\rsa_public_key.pem";
-
-
-                string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
-                if (!is_file_exists(RSA_PUBLIC_KEY_PATH.c_str()))
+                break;
+            case 5:
+                system("cls");
+                if (!selected_device.drive_letter.empty())
                 {
-                    if (!generate_and_save_rsa_keys(rsa_private_key_path, RSA_PUBLIC_KEY_PATH))
+                    string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
+
+                    if (is_file_encrypted(AES_KEY_FILE.c_str()))
                     {
-                        cerr << "error on writing rsa keys\n";
+                        ensure_aes_key_decrypted(AES_KEY_FILE.c_str(), rsa_private_key_path.c_str());
+                    }
+
+                    if (!decryption_with_aes_ui(aes, AES_KEY_FILE.c_str()))
+                    {
+                        cout << "error on decrypting files...\n";
+                        ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
                         return false;
                     }
+                    ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
                 }
-                if (!is_file_encrypted(AES_KEY_FILE.c_str()))
+                else
                 {
-                    ensure_aes_key_encrypted(AES_KEY_FILE, RSA_PUBLIC_KEY_PATH.c_str());
+                    cout << "please, pick a device (option 2)\n";
                 }
+                break;
+            case 6:
+                running = false;
+                break;
+
+            default:
+                cout << "invalid choice. please try again.\n";
             }
-            break;
         }
-
-        case 3:
-            system("cls");
-            devices = update_drive_list();
-            break;
-        case 4:
-            system("cls");
-            if (!selected_device.drive_letter.empty())
-            {
-
-                string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
-                
-                if (is_file_encrypted(AES_KEY_FILE.c_str()))
-                {
-                    ensure_aes_key_decrypted(AES_KEY_FILE.c_str(), rsa_private_key_path.c_str());
-                }
-                if (!encryption_with_aes_ui(iv, aes))
-                {
-                    cout << "error on encrypting files...\n";
-                    ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
-                    return false;
-                }
-                ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
-            }
-            else
-            {
-                cout << "please, pick a device (option 2)\n";
-            }
-            break;
-        case 5:
-            system("cls");
-            if (!selected_device.drive_letter.empty())
-            {
-                string rsa_private_key_path = selected_device.drive_letter + "rsa_private_key.pem";
-
-                if (is_file_encrypted(AES_KEY_FILE.c_str()))
-                {
-                    ensure_aes_key_decrypted(AES_KEY_FILE.c_str(), rsa_private_key_path.c_str());
-                }
-
-                if (!decryption_with_aes_ui(aes, AES_KEY_FILE.c_str()))
-                {
-                    cout << "error on decrypting files...\n";
-                    ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
-                    return false;
-                }
-                ensure_aes_key_encrypted(AES_KEY_FILE.c_str(), RSA_PUBLIC_KEY_PATH.c_str());
-            }
-            else
-            {
-                cout << "please, pick a device (option 2)\n";
-            }
-            break;
-        case 6:
-            running = false;
-            break;
-        
-        default:
-            cout << "invalid choice. please try again.\n";
+        else
+        {
+            cout << "Invalid choice\n";
+            return 0;
         }
     }
+      
     delete[] aes;
     delete[] iv;
 }

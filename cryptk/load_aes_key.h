@@ -9,14 +9,14 @@ bool load_aes_key(const char* file_path, unsigned char* key, size_t key_size)
     ifstream file(file_path, ios::binary);
     if (!file.is_open())
     {
-        cout << "Error opening file for reading\n";
+        cout << "error opening file for reading\n";
         return false;
     }
 
     file.read(reinterpret_cast<char*>(key), key_size);
     if (!file)
     {
-        cout << "Error reading key from file\n";
+        cout << "error reading key from file\n";
         file.close();
         return false;
     }
@@ -24,3 +24,4 @@ bool load_aes_key(const char* file_path, unsigned char* key, size_t key_size)
     file.close();
     return true;
 }
+

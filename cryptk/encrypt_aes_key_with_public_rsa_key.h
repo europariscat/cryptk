@@ -7,7 +7,7 @@ bool encrypt_aes_key_with_public_key(const string& aes_key, const string& public
     FILE* public_key_file = fopen(public_key_path.c_str(), "r");
     if (!public_key_file)
     {
-        cerr << "Failed to open public key file." << endl;
+        fprintf(stderr, "failed to open public key file.\n");
         return false;
     }
 
@@ -16,14 +16,14 @@ bool encrypt_aes_key_with_public_key(const string& aes_key, const string& public
 
     if (!public_key)
     {
-        cerr << "Error reading public key: " << ERR_error_string(ERR_get_error(), nullptr) << endl;
+        fprintf(stderr, "error reading public key: %s\n", ERR_error_string(ERR_get_error(), nullptr));
         return false;
     }
 
     EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(public_key, nullptr);
     if (!ctx)
     {
-        cerr << "Failed to create EVP_PKEY_CTX." << endl;
+        fprintf(stderr, "failed to create EVP_PKEY_CTX.\n");
         EVP_PKEY_free(public_key);
         return false;
     }
@@ -31,7 +31,7 @@ bool encrypt_aes_key_with_public_key(const string& aes_key, const string& public
     if (EVP_PKEY_encrypt_init(ctx) <= 0)
     {
 
-        cerr << "Failed to initialize encryption." << endl;
+        fprintf(stderr, "Failed to initialize encryption.\n");
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(public_key);
         return false;
@@ -40,16 +40,17 @@ bool encrypt_aes_key_with_public_key(const string& aes_key, const string& public
     size_t encrypted_len = 0;
     if (EVP_PKEY_encrypt(ctx, nullptr, &encrypted_len, reinterpret_cast<const unsigned char*>(aes_key.data()), aes_key.size()) <= 0)
     {
-        cerr << "Failed to determine encrypted length." << endl;
+        fprintf(stderr, "failed to determine encrypted length.\n");
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(public_key);
         return false;
     }
 
     encrypted_key.resize(encrypted_len);
-    if (EVP_PKEY_encrypt(ctx, reinterpret_cast<unsigned char*>(&encrypted_key[0]), &encrypted_len, reinterpret_cast<const unsigned char*>(aes_key.data()), aes_key.size()) <= 0)
+    if (EVP_PKEY_encrypt(ctx, reinterpret_cast<unsigned char*>(&encrypted_key[0]), &encrypted_len,
+        reinterpret_cast<const unsigned char*>(aes_key.data()), aes_key.size()) <= 0)
     {
-        cerr << "Encryption failed." << endl;
+        fprintf(stderr, "encryption failed.\n");
         EVP_PKEY_CTX_free(ctx);
         EVP_PKEY_free(public_key);
         return false;

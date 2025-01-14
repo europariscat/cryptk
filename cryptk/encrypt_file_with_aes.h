@@ -67,10 +67,10 @@ bool encrypt_file_with_aes(const string& input_file, const string& output_file, 
 
     temp_output_file.write(reinterpret_cast<char*>(encrypted_buffer), final_bytes);
 
-    for (int i = 0; i < AES_BLOCK_SIZE; ++i)
-        printf("IV[%d]: %02x\n", i, iv[i]);
-    for (int i = 0; i < 32; ++i)
-        printf("AES Key[%d]: %02x\n", i, aes[i]);
+    //for (int i = 0; i < AES_BLOCK_SIZE; ++i)
+    //    printf("IV[%d]: %02x\n", i, iv[i]);
+    //for (int i = 0; i < 32; ++i)
+    //    printf("AES Key[%d]: %02x\n", i, aes[i]);
 
     EVP_CIPHER_CTX_free(ctx);
     return true;
